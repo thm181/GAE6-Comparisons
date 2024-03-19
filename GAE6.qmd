@@ -1,0 +1,159 @@
+---
+title: "GAE6: Pea Aphids: multiple comparisons"
+author: "Your Name Here"
+format: 
+  html:
+    embed-resources: true
+    toc: false
+    code-tools: true
+
+csl: ecology.csl
+
+editor: visual
+bibliography: references.bib
+---
+
+```{r}
+#| label: SetUp
+#| message: FALSE
+#| echo: FALSE
+
+knitr::opts_chunk$set(
+  echo = FALSE,
+  message = FALSE,
+  warning = TRUE
+  ) 
+
+library(emmeans)
+library(effectsize)
+library(car)
+library(ggfortify)
+library(patchwork)
+library(broom)
+library(latex2exp)       
+library(kableExtra)
+library(tidyverse)
+
+options(
+  knitr.kable.NA = ''
+  )
+```
+
+## Introduction:
+
+Pea aphids, *Acyrthosiphon pisum*, can be red or green. Red aphids make carotenoids with genes thought to have jumped from a fungus into the aphid genome some time during recent evolutionary history. Aphid body color is thought to be genetically controlled by a single locus, with red being dominant over green. Ladybird beetles tend to consume red aphids on green plants, and parasitoid wasps preferentially attack green aphids. The predation and parasitism pressures appear to maintain the color variation in natural aphid populations.
+
+While screening pea aphid strains from natural populations collected in France, @tsuchida2010 found several strains of green aphids producing red nymphs. As the nymphs grew, their body color changed from reddish to greenish, and the adults became green. In a survey of endosymbiotic microbiota in these aphid strains they found a previously unrecognized aphid endosymbiont of the genus *Rickettsiella*. They hypothesised is that the color change was associated with the *Rickettsiella* infection.
+
+```{r}
+#| label: dataImport
+
+aphids <- read_csv("PeaAphids.csv", show_col_types = FALSE)
+
+aphids$Treatment <- factor(
+  aphids$Treatment,
+  levels = c(
+    "Control",
+    "Uninfected",
+    "Infected"
+  )
+)
+```
+
+## Methods:
+
+To test this, @tsuchida2010 injected the bacterium into genetically identical, bacteria-free red aphids (@fig-aphidPhoto). Some aphids did not become infected, resulting in three groups of aphids: a planned control that were not injected, an unplanned but useful group that were injected but did not develop an infection, providing a sham control, and a group that were injected and did become infected.
+
+```{r }
+#| label: fig-aphidPhoto
+#| fig-cap: "Example photos of Pea aphids used in the experiment."
+#| out.width: "50%"
+
+
+knitr::include_graphics("PeaAphids.jpg")
+```
+
+To measure color, the researchers used Adobe Photoshop CS (version 8.01, Adobe Inc., San Jose, CA, USA) to measure the hue of 10 pixels from color photos of the aphids. The average hue angle [^1] was then recorded for each aphid.
+
+[^1]: Hue can typically be represented quantitatively by a single number, often corresponding to an angular position around a central or neutral point or axis on a colorspace coordinate diagram ![](Different-hue-names.jpg){width="50%"}.
+
+### Statistical Methods:
+
+I tested for differences among the un-injected control (Control), the injected but uninfected aphids (Uninfected), and the injected and infected aphids (Infected) by analysis of variance (ANOVA) using the lm() function from R [@base] and the Anova() function from the car package [@car]. All data manipulation and graphical results were computed using packages provided by the tidyverse metapackage [@tidyverse] and all tabular results were produced using the kbl() function from the kableExtra package [@kableExtra].
+
+## Results:
+
+Infected pea aphids exhibited distinctly larger hue angles and hence greener colors (@tbl-ANOVA, @fig-Aphids). This result supports the researchers' hypothesis that infection may lead to color change.
+
+```{r}
+#| label: tbl-ANOVA
+#| tbl-cap: "Summary of the analysis of variance for differences in hue angle for pea aphids (*Acyrthosiphon pisum*) that were infected with *Rickettsiella* compared to uninfected and control aphids."
+
+aphidMod <- lm(
+  Hue ~ Treatment,
+  data = aphids
+)
+
+aphidAnova <- Anova(aphidMod)
+
+aphidAnova$`Pr(>F)` <- format.pval(
+  aphidAnova$`Pr(>F)`,
+  digits = 5,
+  eps = 0.001,
+  na.form = ''
+)
+
+kbl(
+  aphidAnova,
+  col.names = c(
+    "",
+    "SS",
+    "df",
+    "F",
+    "P"
+    ),
+  digits = c(1,0,1,4),
+  align = "r",
+  table.attr = 'data-quarto-disable-processing="true"'
+  ) |>
+  kable_classic(
+    full = FALSE
+  )
+```
+
+```{r}
+#| label: fig-Aphids
+#| fig-cap: "Color change as measured by hue angle for pea aphids (*Acyrthosiphon pisum*) that were infected with *Rickettsiella* compared to uninfected and control aphids."
+
+ggplot(aphids)+
+  geom_boxplot(
+    aes(x = Treatment, y = Hue),
+    coef = 3) +
+  geom_jitter(
+        aes(
+          x = Treatment, 
+          y = Hue, 
+          color = Hue
+          ),
+        shape = 19,
+        size = 4,
+        width = 0.35,
+        height = 0
+    ) +
+  scale_y_continuous(
+    name = "Hue Angle (degrees)",
+    limits = c(10, 45),
+    expand = c(0,0)
+  ) +
+  scale_color_steps(
+    low = "orangered3",
+    high = "darkgreen"
+  ) +
+  theme_classic() +
+  theme(
+    legend.position = "none"
+  )
+
+```
+
+## References:
